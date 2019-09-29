@@ -128,8 +128,12 @@ for j in range(len(data)):
         #fdist1 = FreqDist(filtered_sentence)
         #print(str(fdist1.most_common(3))+'---'+str(i))
     except Exception as e:
-        print(str(i['website'])+'--> crawl_status=1')
-        
+        #print(+'--> crawl_status=1')
+        r=requests.post('http://13.71.83.193/api/website-data/'+str(i['id'])+'?crawl_status=1')
+        if str(r.status_code)=='OK':
+            print('POST SUCCESSFUL')
+        else:
+            print('COULD NOT POST')
         #traceback.print_exc()  
 
 
@@ -177,7 +181,7 @@ class MailSpider(scrapy.Spider):
             mail_list = re.findall('\w+@\w+\.{1}\w+', html_text)
             #phone_list=re.findall(r"+\d{2}\s?0?\d{10}",html_text)
             #phone_list=re.findall("/^[\.-)( ]*([0-9]{3})[\.-)( ]*([0-9]{3})[\.-)( ]*([0-9]{4})$/",html_text)
-            phonelist=re.findall("1?\W*([2-9][0-8][0-9])\W*([2-9][0-9]{2})\W*([0-9]{4})(\se?x?t?(\d*))?",html_text)
+            phone_list=re.findall("1?\W*([2-9][0-8][0-9])\W*([2-9][0-9]{2})\W*([0-9]{4})(\se?x?t?(\d*))?",html_text)
             #print(foundnum)
             print(str(response.url))
             contact_links.append(str(response.url)) 
