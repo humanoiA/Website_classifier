@@ -43,7 +43,6 @@ def text_from_html(body):
     visible_texts = filter(tag_visible, texts)  
     return u" ".join(t.strip() for t in visible_texts)
 
-
 # In[71]:
 
 
@@ -116,6 +115,7 @@ for j in range(len(data)):
         for j in filtered_sentence:
             if j in keywords_event:
                 cat1+=1
+        if 
         if cat1>=cat2 and cat1>=cat3:
             print('Events--->'+str(i['website'].lower()))
             
@@ -130,10 +130,7 @@ for j in range(len(data)):
     except Exception as e:
         #print(+'--> crawl_status=1')
         r=requests.post('http://13.71.83.193/api/website-data/'+str(i['id'])+'?crawl_status=1')
-        if str(r.status_code)=='OK':
-            print('POST SUCCESSFUL')
-        else:
-            print('COULD NOT POST')
+        print(str(r.status_code)+' '+str(r.reason))
         #traceback.print_exc()  
 
 
