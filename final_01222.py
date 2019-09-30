@@ -87,18 +87,7 @@ for j in range(len(data)):
     try:
         cat1=cat2=cat3=0
         #my_url='https://www.edsys.in/40-free-educational-websites-you-shouldnt-miss/'
-        hdr = {'User-Agent': 'Mozilla/5.0'}
-        if str(i['website']).startswith('http'):
-            req = Request(str(i['website'].lower()),headers=hdr)
-            websites.append(i['website'])
-            website_url=i['website']
-        else:
-            req = Request('http://'+str(i['website'].lower()),headers=hdr)    
-            websites.append('http://'+i['website'])
-            website_url='http://'+i['website']
-        
-        api2_update+='group'+str((count))+'='+str(i['group'])+'&'+'url'+str((count))+'='+str(website_url)+'&'
-            
+                    
         
             
 #         html_text = str(req.text) 
@@ -110,11 +99,21 @@ for j in range(len(data)):
 #         email.append(dic)
         #df.to_csv(self.path, mode='a', header=False) 
         #df.to_csv(self.path, mode='a', header=False) 
+        hdr = {'User-Agent': 'Mozilla/5.0'}
+        if str(i['website']).startswith('http'):
+            req = Request(str(i['website'].lower()),headers=hdr)
+            websites.append(i['website'])
+            website_url=i['website']
+        else:
+            req = Request('http://'+str(i['website'].lower()),headers=hdr)    
+            websites.append('http://'+i['website'])
+            website_url='http://'+i['website']
         uClient=uReq(req)
         page_html=uClient.read()
         uClient.close()
         word_tokens = word_tokenize(text_from_html(page_html))
         lmtzr = WordNetLemmatizer()
+        group_list=str()
         filtered_sentence = [j for j in word_tokens if j not in stop] 
         for j in range(len(filtered_sentence)):
             filtered_sentence[j]=lmtzr.lemmatize(filtered_sentence[j].lower())
@@ -127,16 +126,23 @@ for j in range(len(data)):
         for j in filtered_sentence:
             if j in keywords_event:
                 cat1+=1
+        if cat1==0 and cat2==0 and cat3==0:
+            group_list=FreqDist(filtered_sentence).most_common(1)
         if cat1>=cat2 and cat1>=cat3:
-            print('Events--->'+str(i['website'].lower()))
+            #print('Events--->'+str(i['website'].lower()))
+            group_list='Events'
             update+='&events_found=1'
         elif cat2>=cat1 and cat2>=cat3:
-            print('Jobs--->'+str(i['website'].lower()))
+            #print('Jobs--->'+str(i['website'].lower()))
+            group_list='Jobs'
             update+='&jobs_found=1'
         else:
-            print('Education--->'+str(i['website'].lower()))
+            #print('Education--->'+str(i['website'].lower()))
+            group_list='Education'
             update+='&education_found=1'
-            
+        
+        api2_update+='group'+str((count))+'='+group_list+'&'+'url'+str((count))+'='+str(website_url)+'&'
+
     #Adding code for email and contact
         # finding email and contact on main page
         page = requests.get(website_url)
@@ -207,7 +213,7 @@ for j in range(len(data)):
 #                             phone_string+=str(b) + ','
                     phone_string=''
                     for p in range(len(phone_list)):
-                        if p==len(mails)-1:
+                        if p==len(phone_list)-1:
                             phone_string+=str(phone_list[p])
                         else:
                             phone_string+=str(phone_list[p])+','
@@ -224,7 +230,7 @@ for j in range(len(data)):
     
     
     except requests.exceptions.ConnectionError:
-        print('Invalid website',website[i])
+        print('Invalid website',websites[i])
         r=requests.post('http://13.71.83.193/api/website-data/'+str(i['id'])+'?'+update)
         j+=1
         continue
@@ -278,7 +284,7 @@ api2_update
 
 #calling api 2
 api2_request=requests.post('http://13.71.83.193/api/new-api?'+api2_update)
-if api2_request.status_code==200:`
+if api2_request.status_code==200:
     print('API2 submitted successfullly')
 else:
     print('API2 is not submitted')
