@@ -68,7 +68,7 @@ for i in range(list_len):
         for name in syn.lemma_names():
             keywords_edu.append(name)
 stop = stopwords.words('english') + list(string.punctuation)
-r = requests.get('http://13.71.83.193/api/website-data?count=5') #for now keeping the count as 5
+r = requests.get('http://13.71.83.193/api/website-data?count=20') #for now keeping the count as 5
 data=json.loads(r.text)
 
 
@@ -229,8 +229,8 @@ for j in range(len(data)):
     
     
     
-    except requests.exceptions.ConnectionError:
-        print('Invalid website',websites[i])
+    except Exception as e:
+        print('Invalid website',websites[count-1])
         r=requests.post('http://13.71.83.193/api/website-data/'+str(i['id'])+'?'+update)
         j+=1
         continue
