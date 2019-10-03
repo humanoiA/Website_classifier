@@ -41,6 +41,19 @@ logging.getLogger('scrapy').propagate = False
 
 
 # In[2]:
+def removetags_fc(data_str):
+    appendingmode_bool = True
+    output_str = ''
+    for char_str in data_str:
+        if char_str == '>':
+            appendingmode_bool = False
+        elif char_str == '<':
+            appendingmode_bool = True
+            continue
+        if appendingmode_bool:
+            output_str += char_str
+    return output_str
+
 
 
 def tag_visible(element):
@@ -121,8 +134,10 @@ for j in range(len(data)):
             website_url='http://'+i['website']
         uClient=uReq(req)
         page_html=uClient.read()
+        soup = BeautifulSoup(page_html, 'html.parser')
+        text_string = soup.findAll(text=True)
         uClient.close()
-        word_tokens = word_tokenize(text_from_html(page_html))
+        word_tokens = word_tokenize(removetags_fc(page_html))
         lmtzr = WordNetLemmatizer()
         group_list=str()
         filtered_sentence = [j for j in word_tokens if j not in stop] 
