@@ -38,12 +38,14 @@ import  bs4
 logging.getLogger('scrapy').propagate = False
 
 
-website_data_api='http://13.71.83.193/api/website-data?count=40' #for now keeping the count as 40
+website_data_api='http://13.71.83.193/api/website-data?count=60' #for now keeping the count as 40
 update='crawl_status=1' #stores parameters to be passed onto api/changes to crawl status=2 if webpage is not accessible
 websites=[]#stores the list of websites
 api2_update=''#stores the parameters for every site like which group list it belongs to and contact 
 count=1#used to iterate through website id
 website_url=''#stores website url
+mail_string=''  #Initialising string for emails 
+phone_string=''
 def removetags_fc(data_str):
     '''This function is used to remove all html tags from the String
 
@@ -105,8 +107,10 @@ def contact_extractor(id):
     global count
 
     
-    mail_string=''  #Initialising string for emails 
-    phone_string='' #Initialising string for phone number
+    global mail_string #Initialising string for emails 
+    global phone_string
+    mail_list=[]
+    phone_list=[] #Initialising string for phone number
     # mail_string1='' #Initialising string for emails at website's Contact page
     # phone_string1='' #Initialising string for phone number at website's home page
     page = requests.get(website_url)
@@ -258,7 +262,7 @@ def website_classifier():
                 req = Request('http://'+str(i['website'].lower()),headers=hdr)   
                 websites.append('http://'+i['website'])
                 website_url='http://'+i['website']
-            uClient=uReq(req)
+            uClient=uReq(req,timeout=25)
             page_html=uClient.read()
             soup = BeautifulSoup(page_html, 'html.parser')
             text_string = soup.findAll(text=True)
@@ -271,26 +275,24 @@ def website_classifier():
                         cat1+=1
             word_tokens = word_tokenize(removetags_fc(text_string))#tokenizing words from website
             lmtzr = WordNetLemmatizer()
-            group_list=str()
+            #group_list=str()
             filtered_sentence = [a for a in word_tokens if a not in stop] #removing stop words
             for a in range(len(filtered_sentence)):
                 filtered_sentence[a]=lmtzr.lemmatize(filtered_sentence[a].lower())#lemmetizing words; ex-running can be writtten as run || converting words into their original form
             for a in filtered_sentence:
                 if a in keywords_edu:
                     cat3+=1#checking if there is any match with education keywords
+            group_list=str(i['group'])
             if cat1==0 and cat2==0 and cat3==0:
                 nouns = [word for (word, pos) in nltk.pos_tag(word_tokens) if (pos[:2] == 'NN')]#extracting only noun from we address 
-                common_word=FreqDist(nouns).most_common(15)#finding frequency distribution of most common words
+                common_word=FreqDist(nouns).most_common(5)#finding frequency distribution of most common words
                 for a in common_word:
                     if re.match(r'[a-z]+$',str(a[0]).lower()):#if common word has only words then assign it to group_list(the group assigned to the webpage like education,jobs etc), do not assign if any word like hello134 is found
-                        if i['group'] == '':#assign to group list only if the websie is not grouped earlier as there are some false outputs
+                        if str(i['group']).lower().replace(',','')  == str(a[0]).lower():#assign to group list only if the websie is not grouped earlier as there are some false outputs
                             group_list=a[0]
-                            print(group_list+'--->'+str(i['website'].lower()))
                             break
-                        else:
-                            group_list=i['group']
-                            print(group_list+'--->'+str(i['website'].lower()))
-                            break
+                        #print(group_list+'--->'+str(i['website'].lower()))
+                print(group_list+'--->'+str(i['website'].lower()))            
             elif cat1==cat2 and cat1!=0 and cat2!=0:
                 print('Jobs and Events--->'+str(i['website'].lower()))
                 group_list='Jobs_and_Events'
@@ -319,7 +321,7 @@ def website_classifier():
             contact_extractor(str(i['id']))
             
         except Exception as e:
-            #logging.exception(':(')   
+            logging.exception(':(')   
             print('Update for {} website is crawl_status=2'.format(website_url))
             #Requesting API3 for update
             #api_update.API3('crawl_status=2',str(i['id'])) #API3 call
