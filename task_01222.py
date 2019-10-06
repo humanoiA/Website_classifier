@@ -1,3 +1,13 @@
+''' 
+   This Python Script Classifies websites into different groups like Jobs,Education and Events.
+   		If the website doesn't matches with any of the group then, top three keyword of websites are extracted
+   		and matches with the already present group in the database.
+   		If the top 3 keyword do not have any group name..then we just dump the top_keyword back to API.
+
+   This Script also Extract Emails and Phone numbers from the Website home page as well as their ContactUs page and pass the information to API
+
+'''
+
 
 import api_update # python script for calling APIs
 import numpy as np
@@ -27,6 +37,8 @@ import urllib
 import  bs4
 logging.getLogger('scrapy').propagate = False
 
+
+website_data_api='http://13.71.83.193/api/website-data?count=40' #for now keeping the count as 40
 update='crawl_status=1' #stores parameters to be passed onto api/changes to crawl status=2 if webpage is not accessible
 websites=[]#stores the list of websites
 api2_update=''#stores the parameters for every site like which group list it belongs to and contact 
@@ -93,10 +105,10 @@ def contact_extractor(id):
     global count
 
     
-    mail_string=''  #Initialising string for emails at website's home page
-    phone_string='' #Initialising string for phone number at website's home page
-    mail_string1='' #Initialising string for emails at website's Contact page
-    phone_string1='' #Initialising string for phone number at website's home page
+    mail_string=''  #Initialising string for emails 
+    phone_string='' #Initialising string for phone number
+    # mail_string1='' #Initialising string for emails at website's Contact page
+    # phone_string1='' #Initialising string for phone number at website's home page
     page = requests.get(website_url)
     main_contact=page.content
 
@@ -109,36 +121,22 @@ def contact_extractor(id):
 
 
     #Email_list for homepage
-    all_main_contact_mail_list = re.findall('\w+@\w+\.{1}\w+', main_contact_html_text) 
+    main_contact_mail_list = re.findall('\w+@\w+\.{1}\w+', main_contact_html_text) 
 
     #Phone number list for homepage
-    all_main_phone_list=re.findall("|".join(["\+\d\d?-? ?\d{3}-\d{3}-\d{4}","\\+\\d\\d?-? ?\\d{10}","\\+\\d\\d?-? ?\\d{5} \\d{5}","\\+\\d\\d?-? ?\\d{3}\\-? ?\\d{7}","\\+\\d\\d?-? ?\\d{4}\\-? ?\\d{6}"]) ,main_contact_html_text)
+    main_phone_list=re.findall("|".join(["\+\d\d?-? ?\d{3}-\d{3}-\d{4}","\\+\\d\\d?-? ?\\d{10}","\\+\\d\\d?-? ?\\d{5} \\d{5}","\\+\\d\\d?-? ?\\d{3}\\-? ?\\d{7}","\\+\\d\\d?-? ?\\d{4}\\-? ?\\d{6}"]) ,main_contact_html_text)
 
-    main_contact_mail_list=np.unique(all_main_contact_mail_list)
-    main_phone_list=np.unique(all_main_phone_list)
-
-
+    
     if len(main_contact_mail_list) is not 0:
         update+='&email_search=1'
         print("Email found at main Page: ",main_contact_mail_list)
-        
+    
 
-        for mk in range(len(main_contact_mail_list)):
-            if mk==len(main_contact_mail_list)-1:
-                mail_string+=str(main_contact_mail_list[mk])
-            else:
-                mail_string+=str(main_contact_mail_list[mk])+','
     if len(main_phone_list) is not 0:
         update+='&contact_found=1'
 
         print("Phone number found at main page: ",main_phone_list)
-        for mp in range(len(main_phone_list)):
-            if mp==len(main_phone_list)-1:
-                phone_string+=str(main_phone_list[mp])
-            else:
-                phone_string+=str(main_phone_list[mp])+','
-
-
+        
 
 #finding Emails and Phone numbers in website's contact page
     soup=bs4.BeautifulSoup(page.text,'html.parser')
@@ -167,36 +165,20 @@ def contact_extractor(id):
             html_text=u" ".join(t.strip() for t in visible_texts)
 
             #Using Regex for extracting Emails and Phone numbers at contactUs page
-            all_mail_list = re.findall('\w+@\w+\.{1}\w+', html_text)
-            all_phone_list=re.findall("|".join(["\+\d\d?-? ?\d{3}-\d{3}-\d{4}","\\+\\d\\d?-? ?\\d{10}","\\+\\d\\d?-? ?\\d{5} \\d{5}","\\+\\d\\d?-? ?\\d{3}\\-? ?\\d{7}","\\+\\d\\d?-? ?\\d{4}\\-? ?\\d{6}"]) ,html_text)
+            mail_list = re.findall('\w+@\w+\.{1}\w+', html_text)
+            phone_list=re.findall("|".join(["\+\d\d?-? ?\d{3}-\d{3}-\d{4}","\\+\\d\\d?-? ?\\d{10}","\\+\\d\\d?-? ?\\d{5} \\d{5}","\\+\\d\\d?-? ?\\d{3}\\-? ?\\d{7}","\\+\\d\\d?-? ?\\d{4}\\-? ?\\d{6}"]) ,html_text)
         
-            #taking out only unique emails and phone numbers
-            mail_list=np.unique(all_mail_list)
-            phone_list=np.unique(all_phone_list)
-
 
 
             if len(mail_list) is not 0:
                 if 'email_search' not in update:
                     update+='&email_search=1'
-            
-                for k in range(len(mail_list)):
-                    if k==len(mail_list)-1:
-                        mail_string1+=str(mail_list[k])
-                    else:
-                        mail_string1+=str(mail_list[k])+','
-                                        
-                
-                    
+
+                                                                            
             if len(phone_list) is not 0:
                 if 'contact_found' not in update:
                     update+='&contact_found=1'
-                    
-                for p in range(len(phone_list)):
-                    if p==len(phone_list)-1:
-                        phone_string1+=str(phone_list[p])
-                    else:
-                        phone_string1+=str(phone_list[p])+','
+
                     
                 
                 
@@ -209,43 +191,49 @@ def contact_extractor(id):
 
     
 
-    #API2 string update.....adding Emails
-    if len(mail_string)==0 and len(mail_string1) is not 0:
-    	api2_update+='email'+str(count)+'='+mail_string1+'&'
-    elif len(mail_string1)==0 and len(mail_string) is not 0:
-    	api2_update+='email'+str(count)+'='+mail_string+'&'
-    elif len(mail_string1) is not 0 and len(mail_string) is not 0:
-    	mail_update=mail_string+','+mail_string1
-    	api2_update+='email'+str(count)+'='+mail_update+'&'
+    
+    f_mail_list=main_contact_mail_list + mail_list
+    final_mail_list=np.unique(f_mail_list)
 
+    f_phone_list=main_phone_list + phone_list
+    final_phone_list=np.unique(f_phone_list)
 
-    #API2 string update....adding Phone numbers 
-    if len(phone_string)==0 and len(phone_string1) is not 0:
-    	api2_update+='phone'+str(count)+'='+phone_string1+'&'
-    elif len(phone_string1)==0 and len(phone_string) is not 0:
+    if len(final_phone_list) is not 0:
+    	for n in range(len(final_phone_list)):
+    		if n ==len(final_phone_list)-1:
+    			phone_string+=str(final_phone_list[n])
+    		else:
+    			phone_string+=str(final_phone_list[n])+','
+
     	api2_update+='phone'+str(count)+'='+phone_string+'&'
-    elif len(phone_string1) is not 0 and len(phone_string) is not 0:
-    	phone_update=phone_string+phone_string1
-    	api2_update+='phone'+str(count)+'='+phone_update+'&'
+
+    if len(final_mail_list) is not 0:
+    	for p in range(len(final_mail_list)):
+    		if p==len(final_mail_list)-1:
+    			mail_string+=str(final_mail_list[p])
+    		else:
+    			mail_string+=str(final_mail_list[p])+','
+
+
+
+
+    	api2_update+='email'+str(count)+'='+mail_string+'&'
+
 
 
     print('Update for {} website is {}'.format(website_url,update))
     count=count+1
-    print('http://13.71.83.193/api/website-data/'+id+'?'+update)
     #Requesting API3 for update
-    api_update.API3(update,id) #API3 call
+    #api_update.API3(update,id) #API3 call
     print('-'*80)
 
 
 def website_classifier():
     '''This function classifies the website on the basis of its content'''
 
-
-
-
     keywords_edu=['training','coaching']#keyword to classify whether it is an education website or not
     stop = stopwords.words('english') + list(string.punctuation) + list(stop_criteria['en'])+ list(punctuations)#to remove stopwords from text extracted from webpage like . , ; i,am, the etc.  
-    r = requests.get('http://13.71.83.193/api/website-data?count=40') #for now keeping the count as 40
+    r = requests.get(website_data_api) 
     data=json.loads(r.text)#to load data from api 
 
     global websites
@@ -332,9 +320,9 @@ def website_classifier():
             
         except Exception as e:
             #logging.exception(':(')   
-            print('Update for {} website is crawl_status=2'.format(i['website']))
-            #Request for API3 update
-            api_update.API3('crawl_status=2',str(i['id'])) #API3 call
+            print('Update for {} website is crawl_status=2'.format(website_url))
+            #Requesting API3 for update
+            #api_update.API3('crawl_status=2',str(i['id'])) #API3 call
             print('-'*80)
             continue
 
@@ -345,11 +333,7 @@ website_classifier()
 api2_update=api2_update[:-1]
 print('Update sending to API2 is ---->  '+api2_update)
 
-api_update.API2(api2_update) #API2 call
+#api_update.API2(api2_update) #API2 call
 
-
-# print('docstring of funcitons ')
-# print(website_classifier.__doc__)
-# print(contact_extractor.__doc__)
 
 
