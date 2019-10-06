@@ -288,9 +288,14 @@ def website_classifier():
                 common_word=FreqDist(nouns).most_common(5)#finding frequency distribution of most common words
                 for a in common_word:
                     if re.match(r'[a-z]+$',str(a[0]).lower()):#if common word has only words then assign it to group_list(the group assigned to the webpage like education,jobs etc), do not assign if any word like hello134 is found
-                        if str(i['group']).lower().replace(',','')  == str(a[0]).lower():#assign to group list only if the websie is not grouped earlier as there are some false outputs
-                            group_list=a[0]
+                        group_list=str(a[0]).lower()#updating group list with top keyword
+                        break
+                for a in common_word:
+                    if re.match(r'[a-z]+$',str(a[0]).lower()):#if common word has only words then assign it to group_list(the group assigned to the webpage like education,jobs etc), do not assign if any word like hello134 is found
+                        if str(i['group']).lower().replace(',','')  == str(a[0]).lower():
+                            group_list=str(i['group'])#updating group list with default group as in api
                             break
+                    
                         #print(group_list+'--->'+str(i['website'].lower()))
                 print(group_list+'--->'+str(i['website'].lower()))            
             elif cat1==cat2 and cat1!=0 and cat2!=0:
