@@ -26,12 +26,13 @@ import urllib
 import  bs4
 logging.getLogger('scrapy').propagate = False
 
-update='crawl_status=1'
-websites=[]
-api2_update=''
-count=1
-website_url=''
+update='crawl_status=1' #stores parameters to be passed onto api/changes to crawl status=2 if webpage is not accessible
+websites=[]#stores the list of websites
+api2_update=''#stores the parameters for every site like which group list it belongs to and contact 
+count=1#used to iterate through website id
+website_url=''#stores website url
 def removetags_fc(data_str):
+    #function to remove html tags 
     appendingmode_bool = True
     output_str = ''
     for char_str in data_str:
@@ -45,6 +46,7 @@ def removetags_fc(data_str):
     return output_str
 
 def tag_visible(element):
+    #function to remove html tags
     if element.parent.name in ['style', 'script', 'head', 'title', 'meta', '[document]']:
         return False
     if isinstance(element, Comment):
@@ -52,6 +54,7 @@ def tag_visible(element):
     return True
 
 def text_from_html(body):
+    #function to extract text from html page
     soup = BeautifulSoup(body, 'html.parser')
     texts = soup.findAll(text=True)
     visible_texts = filter(tag_visible, texts)  
@@ -198,15 +201,15 @@ def contact_extractor(id):
     count=count+1
     print('http://13.71.83.193/api/website-data/'+id+'?'+update)
     #Requesting API3 for update
-    api_update.API3(update,id) #API3 call
+    #api_update.API3(update,id) #API3 call
     print('-'*80)
 
 
 def website_classifier():
-    keywords_edu=['training','coaching']
-    stop = stopwords.words('english') + list(string.punctuation) + list(stop_criteria['en'])+ list(punctuations)
+    keywords_edu=['training','coaching']#keyword to classify whether it is an education website or not
+    stop = stopwords.words('english') + list(string.punctuation) + list(stop_criteria['en'])+ list(punctuations)#to remove stopwords from text extracted from webpage like . , ; i,am, the etc.  
     r = requests.get('http://13.71.83.193/api/website-data?count=40') #for now keeping the count as 40
-    data=json.loads(r.text)
+    data=json.loads(r.text)#to load data from api 
 
     global websites
     global website_url
@@ -219,8 +222,9 @@ def website_classifier():
         update='crawl_status=1'
 
         try:
-            cat1=cat2=cat3=0
+            cat1=cat2=cat3=0#cat1-category1 belongs to events | cat2- category2 belongs to jobs | cat3-category3 belongs to education
             hdr = {'User-Agent': 'Mozilla/5.0'}
+            #checking if web address starts with http or not, if not adding http at the beginning of address
             if str(i['website']).startswith('http'):
                 req = Request(str(i['website'].lower()),headers=hdr)
                 websites.append(i['website'])
@@ -236,25 +240,25 @@ def website_classifier():
             uClient.close()
             for link in soup.find_all('a'):
                 if link.has_attr('href'):
-                    if 'careers' in link.attrs['href'].lower():
+                    if 'careers' in link.attrs['href'].lower():#checking if website has a career link
                         cat2+=1
-                    if 'events' in link.attrs['href'].lower():
+                    if 'events' in link.attrs['href'].lower():#checking if website has an event link
                         cat1+=1
-            word_tokens = word_tokenize(removetags_fc(text_string))
+            word_tokens = word_tokenize(removetags_fc(text_string))#tokenizing words from website
             lmtzr = WordNetLemmatizer()
             group_list=str()
-            filtered_sentence = [a for a in word_tokens if a not in stop] 
+            filtered_sentence = [a for a in word_tokens if a not in stop] #removing stop words
             for a in range(len(filtered_sentence)):
-                filtered_sentence[a]=lmtzr.lemmatize(filtered_sentence[a].lower())
+                filtered_sentence[a]=lmtzr.lemmatize(filtered_sentence[a].lower())#lemmetizing words; ex-running can be writtten as run || converting words into their original form
             for a in filtered_sentence:
                 if a in keywords_edu:
-                    cat3+=1
+                    cat3+=1#checking if there is any match with education keywords
             if cat1==0 and cat2==0 and cat3==0:
-                nouns = [word for (word, pos) in nltk.pos_tag(word_tokens) if (pos[:2] == 'NN')] 
-                common_word=FreqDist(nouns).most_common(15)
+                nouns = [word for (word, pos) in nltk.pos_tag(word_tokens) if (pos[:2] == 'NN')]#extracting only noun from we address 
+                common_word=FreqDist(nouns).most_common(15)#finding frequency distribution of most common words
                 for a in common_word:
-                    if re.match(r'[a-z]+$',str(a[0]).lower()):
-                        if i['group'] == '':
+                    if re.match(r'[a-z]+$',str(a[0]).lower()):#if common word has only words then assign it to group_list(the group assigned to the webpage like education,jobs etc), do not assign if any word like hello134 is found
+                        if i['group'] == '':#assign to group list only if the websie is not grouped earlier as there are some false outputs
                             group_list=a[0]
                             print(group_list+'--->'+str(i['website'].lower()))
                             break
@@ -286,17 +290,11 @@ def website_classifier():
                 print('Education--->'+str(i['website'].lower()))
                 group_list='Education'
                 update+='&education_found=1'
-            api2_update+='group'+str((count))+'='+group_list+'&'+'url'+str((count))+'='+str(website_url)+'&'
+            api2_update+='group'+str((count))+'='+group_list+'&'+'url'+str((count))+'='+str(website_url)+'&'#api2 update 
             contact_extractor(str(i['id']))
             
-
-            
-
-
-
-
         except Exception as e:
-            logging.exception(':(')   
+            #logging.exception(':(')   
             print('Update for {} website is crawl_status=2'.format(i['website']))
             #Request for API3 update
             api_update.API3('crawl_status=2',str(i['id'])) #API3 call
