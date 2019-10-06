@@ -1,5 +1,6 @@
 
 import api_update # python script for calling APIs
+import numpy as np
 from earthy.wordlist import punctuations
 from earthy.wordlist import stopwords as stop_criteria
 from earthy.preprocessing import remove_stopwords
@@ -32,6 +33,11 @@ api2_update=''#stores the parameters for every site like which group list it bel
 count=1#used to iterate through website id
 website_url=''#stores website url
 def removetags_fc(data_str):
+    '''This function is used to remove all html tags from the String
+
+        return:
+            a string without html tags
+    '''
     #function to remove html tags 
     appendingmode_bool = True
     output_str = ''
@@ -46,6 +52,14 @@ def removetags_fc(data_str):
     return output_str
 
 def tag_visible(element):
+    '''This function is a helper function to removes all the html tags from the element
+            it finds all visible text excluding scripts, comments, css etc.
+
+            
+            return:
+                True or False
+
+    '''
     #function to remove html tags
     if element.parent.name in ['style', 'script', 'head', 'title', 'meta', '[document]']:
         return False
@@ -54,6 +68,13 @@ def tag_visible(element):
     return True
 
 def text_from_html(body):
+    ''' This function is used to extract text from html page ,it uses function tag_visible() as a helper funciton 
+
+            parameter:
+                html content of page
+            return:
+                String of all visible text
+    '''
     #function to extract text from html page
     soup = BeautifulSoup(body, 'html.parser')
     texts = soup.findAll(text=True)
@@ -62,14 +83,16 @@ def text_from_html(body):
 
 
 def contact_extractor(id):
-	#Contact_Extracctor:
-	#This Function Extracts Emails and Phone numbers from Website's homepage as well as their contact page
+
+    '''This Function Extracts Emails and Phone numbers from Website's homepage as well as their contact page'''
 
     global websites
     global website_url
     global update
     global api2_update
     global count
+
+    
     mail_string=''  #Initialising string for emails at website's home page
     phone_string='' #Initialising string for phone number at website's home page
     mail_string1='' #Initialising string for emails at website's Contact page
@@ -86,10 +109,14 @@ def contact_extractor(id):
 
 
     #Email_list for homepage
-    main_contact_mail_list = re.findall('\w+@\w+\.{1}\w+', main_contact_html_text) 
+    all_main_contact_mail_list = re.findall('\w+@\w+\.{1}\w+', main_contact_html_text) 
 
     #Phone number list for homepage
-    main_phone_list=re.findall("|".join(["\+\d\d?-? ?\d{3}-\d{3}-\d{4}","\\+\\d\\d?-? ?\\d{10}","\\+\\d\\d?-? ?\\d{5} \\d{5}","\\+\\d\\d?-? ?\\d{3}\\-? ?\\d{7}","\\+\\d\\d?-? ?\\d{4}\\-? ?\\d{6}"]) ,main_contact_html_text)
+    all_main_phone_list=re.findall("|".join(["\+\d\d?-? ?\d{3}-\d{3}-\d{4}","\\+\\d\\d?-? ?\\d{10}","\\+\\d\\d?-? ?\\d{5} \\d{5}","\\+\\d\\d?-? ?\\d{3}\\-? ?\\d{7}","\\+\\d\\d?-? ?\\d{4}\\-? ?\\d{6}"]) ,main_contact_html_text)
+
+    main_contact_mail_list=np.unique(all_main_contact_mail_list)
+    main_phone_list=np.unique(all_main_phone_list)
+
 
     if len(main_contact_mail_list) is not 0:
         update+='&email_search=1'
@@ -140,10 +167,15 @@ def contact_extractor(id):
             html_text=u" ".join(t.strip() for t in visible_texts)
 
             #Using Regex for extracting Emails and Phone numbers at contactUs page
-            mail_list = re.findall('\w+@\w+\.{1}\w+', html_text)
-            phone_list=re.findall("|".join(["\+\d\d?-? ?\d{3}-\d{3}-\d{4}","\\+\\d\\d?-? ?\\d{10}","\\+\\d\\d?-? ?\\d{5} \\d{5}","\\+\\d\\d?-? ?\\d{3}\\-? ?\\d{7}","\\+\\d\\d?-? ?\\d{4}\\-? ?\\d{6}"]) ,html_text)
+            all_mail_list = re.findall('\w+@\w+\.{1}\w+', html_text)
+            all_phone_list=re.findall("|".join(["\+\d\d?-? ?\d{3}-\d{3}-\d{4}","\\+\\d\\d?-? ?\\d{10}","\\+\\d\\d?-? ?\\d{5} \\d{5}","\\+\\d\\d?-? ?\\d{3}\\-? ?\\d{7}","\\+\\d\\d?-? ?\\d{4}\\-? ?\\d{6}"]) ,html_text)
         
-        
+            #taking out only unique emails and phone numbers
+            mail_list=np.unique(all_mail_list)
+            phone_list=np.unique(all_phone_list)
+
+
+
             if len(mail_list) is not 0:
                 if 'email_search' not in update:
                     update+='&email_search=1'
@@ -201,11 +233,16 @@ def contact_extractor(id):
     count=count+1
     print('http://13.71.83.193/api/website-data/'+id+'?'+update)
     #Requesting API3 for update
-    #api_update.API3(update,id) #API3 call
+    api_update.API3(update,id) #API3 call
     print('-'*80)
 
 
 def website_classifier():
+    '''This function classifies the website on the basis of its content'''
+
+
+
+
     keywords_edu=['training','coaching']#keyword to classify whether it is an education website or not
     stop = stopwords.words('english') + list(string.punctuation) + list(stop_criteria['en'])+ list(punctuations)#to remove stopwords from text extracted from webpage like . , ; i,am, the etc.  
     r = requests.get('http://13.71.83.193/api/website-data?count=40') #for now keeping the count as 40
@@ -263,7 +300,7 @@ def website_classifier():
                             print(group_list+'--->'+str(i['website'].lower()))
                             break
                         else:
-                            group_list=i['group'][:-1]
+                            group_list=i['group']
                             print(group_list+'--->'+str(i['website'].lower()))
                             break
             elif cat1==cat2 and cat1!=0 and cat2!=0:
@@ -308,6 +345,11 @@ website_classifier()
 api2_update=api2_update[:-1]
 print('Update sending to API2 is ---->  '+api2_update)
 
-#api_update.API2(api2_update) #API2 call
+api_update.API2(api2_update) #API2 call
+
+
+# print('docstring of funcitons ')
+# print(website_classifier.__doc__)
+# print(contact_extractor.__doc__)
 
 
