@@ -11,9 +11,6 @@
 
 import api_update # python script for calling APIs
 import numpy as np
-from earthy.wordlist import punctuations
-from earthy.wordlist import stopwords as stop_criteria
-from earthy.preprocessing import remove_stopwords
 import re
 import nltk.corpus
 import logging
@@ -38,7 +35,7 @@ import  bs4
 logging.getLogger('scrapy').propagate = False
 
 
-website_data_api='http://13.71.83.193/api/website-data?count=60' #for now keeping the count as 40
+website_data_api='http://13.71.83.193/api/website-data?count=40' #for now keeping the count as 40
 update='crawl_status=1' #stores parameters to be passed onto api/changes to crawl status=2 if webpage is not accessible
 websites=[]#stores the list of websites
 api2_update=''#stores the parameters for every site like which group list it belongs to and contact 
@@ -96,7 +93,7 @@ def text_from_html(body):
     return u" ".join(t.strip() for t in visible_texts)
 
 
-def contact_extractor(id):
+def contact_extractor(id,group_list):
 
     '''This Function Extracts Emails and Phone numbers from Website's homepage as well as their contact page'''
 
@@ -111,8 +108,6 @@ def contact_extractor(id):
     global phone_string
     mail_list=[]
     phone_list=[] #Initialising string for phone number
-    # mail_string1='' #Initialising string for emails at website's Contact page
-    # phone_string1='' #Initialising string for phone number at website's home page
     page = requests.get(website_url)
     main_contact=page.content
 
@@ -203,6 +198,7 @@ def contact_extractor(id):
     final_phone_list=np.unique(f_phone_list)
 
     if len(final_phone_list) is not 0:
+    	phone_string=''
     	for n in range(len(final_phone_list)):
     		if n ==len(final_phone_list)-1:
     			phone_string+=str(final_phone_list[n])
@@ -212,6 +208,7 @@ def contact_extractor(id):
     	api2_update+='phone'+str(count)+'='+phone_string+'&'
 
     if len(final_mail_list) is not 0:
+    	mail_string=''
     	for p in range(len(final_mail_list)):
     		if p==len(final_mail_list)-1:
     			mail_string+=str(final_mail_list[p])
@@ -223,20 +220,23 @@ def contact_extractor(id):
 
     	api2_update+='email'+str(count)+'='+mail_string+'&'
 
+    if 'email'+str(count) in api2_update or 'phone'+str(count) in api2_update:
+    	api2_update+='group'+str(count)+'='+group_list+'&'+'url'+str(count)+'='+str(website_url)+'&'
+    	count=count+1
+
 
 
     print('Update for {} website is {}'.format(website_url,update))
-    count=count+1
-    #Requesting API3 for update
-    #api_update.API3(update,id) #API3 call
+    #Requesting website_data_api for update
+    #api_update.website_data_api(update,id) #website_data_api call
     print('-'*80)
 
 
 def website_classifier():
     '''This function classifies the website on the basis of its content'''
 
-    keywords_edu=['training','coaching']#keyword to classify whether it is an education website or not
-    stop = stopwords.words('english') + list(string.punctuation) + list(stop_criteria['en'])+ list(punctuations)#to remove stopwords from text extracted from webpage like . , ; i,am, the etc.  
+    keywords_edu=['training','coaching','education']#keyword to classify whether it is an education website or not
+    stop = stopwords.words('english') #+ list(string.punctuation) + list(stop_criteria['en'])+ list(punctuations)#to remove stopwords from text extracted from webpage like . , ; i,am, the etc.  
     r = requests.get(website_data_api) 
     data=json.loads(r.text)#to load data from api 
 
@@ -273,74 +273,73 @@ def website_classifier():
                         cat2+=1
                     if 'events' in link.attrs['href'].lower():#checking if website has an event link
                         cat1+=1
-            word_tokens = word_tokenize(removetags_fc(text_string))#tokenizing words from website
+            word_tokens = word_tokenize(text_from_html(page_html))#tokenizing words from website
             lmtzr = WordNetLemmatizer()
-            #group_list=str()
+            group_list=str()
             filtered_sentence = [a for a in word_tokens if a not in stop] #removing stop words
             for a in range(len(filtered_sentence)):
                 filtered_sentence[a]=lmtzr.lemmatize(filtered_sentence[a].lower())#lemmetizing words; ex-running can be writtten as run || converting words into their original form
             for a in filtered_sentence:
                 if a in keywords_edu:
                     cat3+=1#checking if there is any match with education keywords
-            group_list=str(i['group'])
-            if cat1==0 and cat2==0 and cat3==0:
-                nouns = [word for (word, pos) in nltk.pos_tag(word_tokens) if (pos[:2] == 'NN')]#extracting only noun from we address 
-                common_word=FreqDist(nouns).most_common(5)#finding frequency distribution of most common words
-                for a in common_word:
-                    if re.match(r'[a-z]+$',str(a[0]).lower()):#if common word has only words then assign it to group_list(the group assigned to the webpage like education,jobs etc), do not assign if any word like hello134 is found
-                        group_list=str(a[0]).lower()#updating group list with top keyword
+            #group_list=str(i['group'])
+            nouns = [word for (word, pos) in nltk.pos_tag(word_tokens) if (pos[:2] == 'NN')]#extracting only noun from we address 
+            common_word=FreqDist(nouns).most_common(5)#finding frequency distribution of most common words
+            for a in common_word:
+                if re.match(r'[a-z]+$',str(a[0]).lower()) and len(str(a[0]).lower())>=3:#if common word has only words then assign it to group_list(the group assigned to the webpage like education,jobs etc), do not assign if any word like hello134 is found
+                    group_list=str(a[0]).lower()#updating group list with top keyword
+                    break
+            for a in common_word:
+                if re.match(r'[a-z]+$',str(a[0]).lower()):#if common word has only words then assign it to group_list(the group assigned to the webpage like education,jobs etc), do not assign if any word like hello134 is found
+                    if str(i['group']).lower().replace(',','')  == str(a[0]).lower():
+                        group_list=str(i['group']).lower().replace(',','')#updating group list with default group as in api
                         break
-                for a in common_word:
-                    if re.match(r'[a-z]+$',str(a[0]).lower()):#if common word has only words then assign it to group_list(the group assigned to the webpage like education,jobs etc), do not assign if any word like hello134 is found
-                        if str(i['group']).lower().replace(',','')  == str(a[0]).lower():
-                            group_list=str(i['group'])#updating group list with default group as in api
-                            break
                     
                         #print(group_list+'--->'+str(i['website'].lower()))
-                print(group_list+'--->'+str(i['website'].lower()))            
-            elif cat1==cat2 and cat1!=0 and cat2!=0:
+            print('Group found is ',group_list)            
+            if cat1==cat2 and cat1!=0 and cat2!=0:
                 print('Jobs and Events--->'+str(i['website'].lower()))
-                group_list='Jobs_and_Events'
+                #group_list='Jobs_and_Events'
                 update+='&events_found=1&jobs_found=1'
             elif cat1==cat3 and cat1!=0 and cat3!=0:
                 print('Education_and_Events--->'+str(i['website'].lower()))
-                group_list='Education and Events'
+                #group_list='Education and Events'
                 update+='&education_found=1&events_found=1'
             elif cat3==cat2 and cat3!=0 and cat2!=0:
                 print('Jobs_and_Education--->'+str(i['website'].lower()))
-                group_list='Jobs and Eduaction'
+                #group_list='Jobs and Eduaction'
                 update+='&education_found=1&jobs_found=1'
             elif cat1>cat2 and cat1>cat3:
                 print('Events--->'+str(i['website'].lower()))
-                group_list='Events'
+                #group_list='Events'
                 update+='&events_found=1'
             elif cat2>cat1 and cat2>cat3:
                 print('Jobs--->'+str(i['website'].lower()))
-                group_list='Jobs'
+                #group_list='Jobs'
                 update+='&jobs_found=1'
             elif cat3>cat1 and cat3>cat2:
                 print('Education--->'+str(i['website'].lower()))
-                group_list='Education'
+                #group_list='Education'
                 update+='&education_found=1'
-            api2_update+='group'+str((count))+'='+group_list+'&'+'url'+str((count))+'='+str(website_url)+'&'#api2 update 
-            contact_extractor(str(i['id']))
+            update+='&group'+'='+group_list 
+            contact_extractor(str(i['id']),group_list)
             
         except Exception as e:
             logging.exception(':(')   
             print('Update for {} website is crawl_status=2'.format(website_url))
-            #Requesting API3 for update
-            #api_update.API3('crawl_status=2',str(i['id'])) #API3 call
+            #Requesting website_data_api for update
+            #api_update.website_data_api('crawl_status=2',str(i['id'])) #website_data_api call
             print('-'*80)
             continue
 
 
 website_classifier()
 
-#Requesting API2 update
+#Requesting new APIupdate
 api2_update=api2_update[:-1]
-print('Update sending to API2 is ---->  '+api2_update)
+print('Update sending to New API is ---->  '+api2_update)
 
-#api_update.API2(api2_update) #API2 call
+#api_update.new_api(api2_update) #new_api call
 
 
 

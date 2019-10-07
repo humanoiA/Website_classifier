@@ -1,22 +1,24 @@
 import requests
 
-def API2(api2_update):
+def new_api(api2_update):
 
 
 	api2_request=requests.post('http://13.71.83.193/api/new-api?'+api2_update)
 	
 
 	if api2_request.status_code==200:
-		print('API2 POST SUCCESSFUL')
+		print('New API POST SUCCESSFUL')
 	else:
-		print('API2 COULD NOT POST')
+		print('Status code is ',api2_request.status_code)
+		print('New API COULD NOT POST')
 
 
-def API3(api3_update,id):
+def website_data_api(api3_update,id):
 	r=requests.post('http://13.71.83.193/api/website-data/'+id+'?'+api3_update)
 	
 
 	if r.status_code==200:
-		print('API3 POST IS SUCCESSFUL')
+		print('Website data POST IS SUCCESSFUL')
 	else:
-		print('API3 COULD NOT POST')
+		print('Status code is ',r.status_code)
+		print('website data COULD NOT POST')
